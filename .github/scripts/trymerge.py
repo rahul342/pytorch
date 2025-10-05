@@ -1091,7 +1091,7 @@ class GitHubPR:
         editor = node["editor"]
         return GitHubComment(
             body_text=node["bodyText"],
-            created_at=node["createdAt"] if "createdAt" in node else "",
+            created_at=node.get("createdAt", ""),
             author_login=node["author"]["login"],
             author_association=node["authorAssociation"],
             editor_login=editor["login"] if editor else None,
