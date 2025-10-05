@@ -20,14 +20,10 @@ with open(sys.argv[1]) as input_yaml_file:
             root_operators[op] = 1 + (root_operators.get(op, 0))
         for op in info["traced_operators"]:
             # aggregate occurance per op
-            traced_operators[op] = 1 + (
-                traced_operators.get(op, 0)
-            )
+            traced_operators[op] = 1 + (traced_operators.get(op, 0))
         # merge dtypes for each kernel
         for kernal, dtypes in info["kernel_metadata"].items():
-            new_dtypes = dtypes + (
-                kernel_metadata.get(kernal, [])
-            )
+            new_dtypes = dtypes + (kernel_metadata.get(kernal, []))
             kernel_metadata[kernal] = list(set(new_dtypes))
 
 

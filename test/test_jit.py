@@ -6723,7 +6723,7 @@ a")
         @torch.jit.script
         def testNoThrows(t):
             c1 = 1
-            if (False and bool(t[1])) or (True or bool(t[1])):
+            if (False and bool(t[1])) or (True or bool(t[1])):  # noqa: SIM222,SIM223
                 c1 = 0
             return c1
 
