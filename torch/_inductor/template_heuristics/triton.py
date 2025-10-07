@@ -21,6 +21,7 @@ from ..kernel.mm import (
     blackwell_ws_persistent_device_tma_mm_template,
     mm_template,
     persistent_tma_mm_template,
+    scaled_mm_device_tma_deepseek_block_group_template,
     scaled_mm_device_tma_tensor_row_template,
 )
 from ..kernel.mm_plus_mm import mm_plus_mm_template
@@ -1870,11 +1871,6 @@ class BaseScaledMMConfigMixin(MMTemplateConfigMixin):
 
             return False
 
-        def is_scalar_like(sz: Any) -> bool:
-            return (len(sz) == 0) or all(
-                V.graph.sizevars.statically_known_equals(d, 1) for d in sz
-            )
-
         size_a, size_b = scale_a.get_size(), scale_b.get_size()
         assert are_compatible_scales(size_a, size_b), (
             "Expect scale_a and scale_b to be either both scalars (including single-element tensors) "
@@ -2124,13 +2120,56 @@ class CUDAScaledMMTemplateConfigHeuristic(ScaledMMConfigMixin, CUDAConfigHeurist
     register=torch.version.hip is None,
     op_name="scaled_mm",
 )
-class CUDAScaledTMATemplateConfigHeuristic(ScaledTMAConfigMixin, CUDAConfigHeuristic):
-    """Scaled TMA template heuristic for CUDA"""
+class CUDAScaledTMATensorRowTemplateConfigHeuristic(
+    ScaledTMAConfigMixin, CUDAConfigHeuristic
+):
+    """Scaled TMA template heuristic for CUDA: per-tensor and per-row scaling"""
 
     def __init__(self) -> None:
         super().__init__()
         # Override mm_configs to use scaled_persistent_mm_configs for TMA
         self.mm_configs = self.scaled_persistent_mm_configs
+
+
+@register_template_heuristic(
+    scaled_mm_device_tma_deepseek_block_group_template.uid,
+    "cuda",
+    register=torch.version.hip is None,
+    op_name="scaled_mm",
+)
+class CUDAScaledTMADeepseekBlockGroupTemplateConfigHeuristic(
+    ScaledTMAConfigMixin, CUDAConfigHeuristic
+):
+    """Scaled TMA template heuristic for CUDA: deepseek-style, block-wise, and group-wise scaling"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        # Override mm_configs to use scaled_persistent_mm_configs for TMA
+        self.mm_configs = self.scaled_persistent_mm_configs
+
+    def _get_template_configs_impl(
+        self,
+        kernel_inputs: KernelInputs,
+        op_name: str,
+    ) -> Generator[dict[str, Any], None, None]:
+        """
+        Generate deepseek/block/group scaling kernel inputs.
+        """
+        # Get base scaled MM template configs from superclass
+        for template_kwargs in super()._get_template_configs_impl(
+            kernel_inputs,
+            op_name,
+        ):
+            # Add scaling-specific options for deepseek-style, block-wise, and group-wise scaling
+
+            # Inductor templates require compile-time constants passed in as tl.constexpr values.
+            # In cases in which the block size (BLOCK_*) is less than the tile size (128)
+            # required for deepseek-style scaling, scales must be broadcasted to the block size
+            # (rather than to a 128x128 chunk).
+            template_kwargs["MIN_BLOCK_N_128"] = min(template_kwargs["BLOCK_N"], 128)
+            template_kwargs["MIN_BLOCK_K_128"] = min(template_kwargs["BLOCK_K"], 128)
+
+            yield template_kwargs
 
 
 @register_template_heuristic(
