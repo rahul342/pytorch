@@ -3612,6 +3612,54 @@ def maybe_aoti_standalone_config(config_patches: dict[str, Any]) -> dict[str, An
     return config_patches
 
 
+def determine_aoti_mmap_flags(consts_size: int) -> tuple[bool, bool]:
+    """
+    Decide whether we should mmap weights, and whether to store the weights with .so.
+
+    If force_mmap_weights or force_mmap_weights_on_disk configs are set, respect the config.
+
+    Returns tuple (use_external_weights, use_mmap_weights).
+    """
+
+    if (
+        config.aot_inductor.force_mmap_weights
+        and config.aot_inductor.force_mmap_weights_on_disk
+    ):
+        raise RuntimeError(
+            "config.aot_inductor.force_mmap_weights_on_disk and  config.aot_inductor.force_mmap_weights cannot both be True."
+        )
+
+    if config.aot_inductor.force_mmap_weights:
+        if config.aot_inductor.cross_target_platform == "windows":
+            raise RuntimeError(
+                "when cross_target_platform is windows, use_mmap_weights should not be true."
+            )
+        use_mmap_weights = True
+        use_external_weights = False
+        return use_external_weights, use_mmap_weights
+
+    if config.aot_inductor.force_mmap_weights_on_disk:
+        use_external_weights = True
+        use_mmap_weights = False
+        return use_external_weights, use_mmap_weights
+
+    if consts_size <= 2_000_000_000:
+        return False, False
+
+    # external weights are stored separated, but they're also mmap'd at loading time
+    # windows PE file doesn't support appending weights binary at the end of the .dll file, so we have to store
+    # the weights separately
+    if config.aot_inductor.cross_target_platform == "windows":
+        use_external_weights = True
+        use_mmap_weights = False
+        return use_external_weights, use_mmap_weights
+
+    use_external_weights = False
+    use_mmap_weights = not config.is_fbcode()
+
+    return use_external_weights, use_mmap_weights
+
+
 def is_valid_aoti_model_name() -> bool:
     """
     Validates if a model name is suitable for use in code generation.

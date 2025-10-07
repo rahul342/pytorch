@@ -698,6 +698,22 @@ class AOTInductorTestsTemplate:
         with config.patch({"aot_inductor.force_mmap_weights": True}):
             self.check_model(Model(), example_inputs)
 
+    def test_large_mmaped_weights_on_disk(self):
+        class Model(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.linear = torch.nn.Linear(512, 250112)
+
+            def forward(self, x, y):
+                return x + self.linear(y)
+
+        example_inputs = (
+            torch.randn(1, 250112, device=self.device),
+            torch.randn(1, 512, device=self.device),
+        )
+        with config.patch({"aot_inductor.force_mmap_weights_on_disk": True}):
+            self.check_model(Model(), example_inputs)
+
     def test_with_offset(self):
         class Model(torch.nn.Module):
             def __init__(self, device):

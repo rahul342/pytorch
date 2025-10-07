@@ -780,7 +780,11 @@ class CppWrapperCpu(PythonWrapperCodegen):
                                        {num_constants},
                                        device_str,
                                        std::move(cubin_dir),
+#if defined(USE_MMAP_EXTERNAL)
+                                       false) {{
+#else
                                        {include_weights}) {{
+#endif
             """
         )
 

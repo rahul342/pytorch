@@ -1528,6 +1528,12 @@ class aot_inductor:
     # rather than embedded into the data section. Needed to support 1B+ parameter models
     force_mmap_weights: bool = False
 
+    # Same as force_mmap_weights, but stores the weight blob as a separate file instead of
+    # appending at the end of the .so file. Needed to support >2GB weights for windows cross
+    # compilation.
+    # config.aot_inductor.force_mmap_weights_on_disk and  config.aot_inductor.force_mmap_weights cannot both be True
+    force_mmap_weights_on_disk: bool = False
+
     # Default value of use_consts_asm_build is True, it will build by assembly language.
     # When the value is False, it will build by c++ language.
     use_consts_asm_build = True
@@ -1584,7 +1590,8 @@ class aot_inductor:
     # Experimental. Flag to control whether to include weight in .so
     package_constants_in_so: bool = True
 
-    # Experimental. Flag to control whether to package weight separately on disk
+    # Experimental. Flag to control whether to package weight separately on disk.
+    # Each weight is stored separately, we also store the FQN names of each weight.
     package_constants_on_disk: bool = False
 
     # Experimental.  Controls automatic precompiling of common AOTI include files.
