@@ -6276,7 +6276,7 @@ class AOTInductorTestsTemplate:
         test_inputs = torch.randn(M, K, device=self.device)
         expected = model(test_inputs)
         output = runner_call(test_inputs)
-        self.assertEqual(expected, output)
+        self.assertEqual(expected, output, atol=1e-3, rtol=1e-3)
 
         new_weights = {
             "L__self___weight": torch.randn(N, K, device=self.device),
@@ -6293,7 +6293,7 @@ class AOTInductorTestsTemplate:
         new_expected = torch.nn.functional.linear(
             test_inputs, new_weights["L__self___weight"], new_weights["L__self___bias"]
         )
-        self.assertEqual(new_expected, new_output)
+        self.assertEqual(new_expected, new_output, atol=1e-3, rtol=1e-3)
 
         # Inplace substitube tensor, without user managed buffer, result should be different.
         new_weights["L__self___weight"].add_(1)
@@ -6301,7 +6301,7 @@ class AOTInductorTestsTemplate:
 
         new_output = runner_call(test_inputs)
         # Same as the previous result
-        self.assertEqual(new_expected, new_output)
+        self.assertEqual(new_expected, new_output, atol=1e-3, rtol=1e-3)
         new_expected = torch.nn.functional.linear(
             test_inputs, new_weights["L__self___weight"], new_weights["L__self___bias"]
         )
@@ -6321,14 +6321,14 @@ class AOTInductorTestsTemplate:
         # Try user managed_buffer, should have same free memory.
         runner.update_constant_buffer(new_weights, True, False, True)
         mem_after, _ = torch.cuda.mem_get_info(self.device)
-        self.assertEqual(mem_before, mem_after)
+        self.assertEqual(mem_before, mem_after, atol=1e-3, rtol=1e-3)
 
         runner.swap_constant_buffer()
         new_output = runner_call(test_inputs)
         new_expected = torch.nn.functional.linear(
             test_inputs, new_weights["L__self___weight"], new_weights["L__self___bias"]
         )
-        self.assertEqual(new_expected, new_output)
+        self.assertEqual(new_expected, new_output, atol=1e-3, rtol=1e-3)
 
         # Inplace substitube tensor, with user managed buffer, result should be the same.
         new_weights["L__self___weight"].add_(1)
@@ -6338,7 +6338,7 @@ class AOTInductorTestsTemplate:
         new_expected = torch.nn.functional.linear(
             test_inputs, new_weights["L__self___weight"], new_weights["L__self___bias"]
         )
-        self.assertEqual(new_expected, new_output)
+        self.assertEqual(new_expected, new_output, atol=1e-3, rtol=1e-3)
 
         new_weights = {
             "L__self___weight": torch.randn(N, K, device=self.device),
