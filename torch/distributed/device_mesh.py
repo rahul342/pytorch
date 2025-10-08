@@ -210,7 +210,7 @@ else:
                     "The submesh can only be a 1D mesh."
                 )
                 child_mesh_dim_name = child_mesh_dim_names[0]
-                return self.get_mesh_dim_by_name(root_mesh, child_mesh_dim_name)
+                return root_mesh._get_mesh_dim_by_name(child_mesh_dim_name)
             return None
 
         @staticmethod
@@ -222,23 +222,6 @@ else:
             # ProcessGroup can't tell us this info so we have to infer it, assume
             # homogeneous hardware for now
             return get_world_size() // _MeshEnv.num_devices_per_host(device_type)
-
-        def get_mesh_dim_by_name(
-            self, device_mesh: "DeviceMesh", mesh_dim_name: str
-        ) -> int:
-            if (
-                device_mesh.mesh_dim_names is None
-                or len(device_mesh.mesh_dim_names) == 0
-            ):
-                raise KeyError(
-                    "No `mesh_dim_names` found.",
-                )
-            if mesh_dim_name not in device_mesh.mesh_dim_names:
-                raise KeyError(
-                    f"Mesh dimension '{mesh_dim_name}' does not exist.",
-                    f"Available mesh dimensions are: mesh_dim_names={device_mesh.mesh_dim_names}",
-                )
-            return not_none(device_mesh.mesh_dim_names.index(mesh_dim_name))
 
         def _set_mesh_dim_group_options(
             self,
@@ -339,7 +322,7 @@ else:
             """
             Return all the submeshes of a given mesh dimension of the device mesh.
             """
-            mesh_dim = self.get_mesh_dim_by_name(device_mesh, mesh_dim_name)
+            mesh_dim = device_mesh._get_mesh_dim_by_name(mesh_dim_name)
             layout = device_mesh._layout[mesh_dim]
             pg_ranks_by_dim = layout.remap_to_tensor(
                 device_mesh.mesh,
@@ -828,7 +811,7 @@ else:
                 return not_none(_resolve_process_group(dim_group_name))
             else:
                 mesh_dim = (
-                    _mesh_resources.get_mesh_dim_by_name(self, mesh_dim)
+                    self._get_mesh_dim_by_name(mesh_dim)
                     if isinstance(mesh_dim, str)
                     else mesh_dim
                 )
@@ -1091,6 +1074,18 @@ else:
             return _mesh_resources.create_flatten_mesh(
                 self, mesh_dim_name, backend_override_tuple
             )
+
+        def _get_mesh_dim_by_name(self, mesh_dim_name: str) -> int:
+            if self.mesh_dim_names is None or len(self.mesh_dim_names) == 0:
+                raise KeyError(
+                    "No `mesh_dim_names` found.",
+                )
+            if mesh_dim_name not in self.mesh_dim_names:
+                raise KeyError(
+                    f"Mesh dimension '{mesh_dim_name}' does not exist.",
+                    f"Available mesh dimensions are: mesh_dim_names={self.mesh_dim_names}",
+                )
+            return not_none(self.mesh_dim_names.index(mesh_dim_name))
 
     def _normalize_backend_override(
         backend_override: dict[
